@@ -3,6 +3,9 @@ import 'package:app/user_auth/presentation/views/homepage.dart';
 import 'package:app/user_auth/presentation/views/signup_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,6 +15,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
   bool password = true;
   final FirebaseAuthService _auth = FirebaseAuthService();
@@ -29,6 +33,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: Colors.grey[900],
         body: Padding(
           padding: const EdgeInsets.all(25.0),
@@ -60,7 +65,7 @@ class _LoginPageState extends State<LoginPage> {
                   height: 25,
                 ),
                 TextFormField(
-                  validator: (value){
+                  validator: (value) {
                     if (value == null || value.isEmpty) {
                       return "Please enter your email";
                     }
@@ -73,6 +78,9 @@ class _LoginPageState extends State<LoginPage> {
                   style: const TextStyle(color: Colors.white),
                   controller: _emailController,
                   decoration: InputDecoration(
+                      errorStyle: const TextStyle(color: Colors.white),
+                      contentPadding: const EdgeInsets.only(
+                          left: 30, right: 10, top: 20, bottom: 20),
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(50)),
                       filled: true,
@@ -97,7 +105,11 @@ class _LoginPageState extends State<LoginPage> {
                   obscureText: password,
                   controller: _passwordController,
                   decoration: InputDecoration(
+                      errorStyle: const TextStyle(color: Colors.white),
+                      contentPadding: const EdgeInsets.only(
+                          left: 30, top: 8, right: 10, bottom: 8),
                       suffix: IconButton(
+                        iconSize: 20,
                         icon: password
                             ? const Icon(Icons.visibility_off)
                             : const Icon(Icons.visibility),
@@ -136,8 +148,11 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 25),
                 GestureDetector(
-                  onTap: (){
-                    if(_formKey.currentState!.validate()){
+                  onTap: () async {
+                    if (_formKey.currentState!.validate()) {
+                      setState(() {
+                        _isLoading = true;
+                      });
                       _signIn();
                     }
                   },
@@ -146,14 +161,51 @@ class _LoginPageState extends State<LoginPage> {
                     decoration: BoxDecoration(
                         color: const Color.fromARGB(255, 113, 82, 167),
                         borderRadius: BorderRadius.circular(50)),
-                    child: const Center(
-                      child: Text(
-                        "Log in",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold),
-                      ),
+                    child: Center(
+                      child: _isLoading
+                          ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                          : const Text(
+                              "Log in",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
+                GestureDetector(
+                  onTap: _signInWithGoogle,
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    height: 60,
+                    width: double.maxFinite,
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(50)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          FontAwesomeIcons.google,
+                          color: Colors.blue[900],
+                        ),
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        Text(
+                          "Sign Up With Google",
+                          style: TextStyle(
+                              fontSize: 20,
+                              color: Colors.blue[900],
+                              fontWeight: FontWeight.bold),
+                        )
+                      ],
                     ),
                   ),
                 )
@@ -164,18 +216,45 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+
   void _signIn() async {
     String email = _emailController.text;
     String password = _passwordController.text;
 
     User? user = await _auth.signInWithEmailAndPassword(email, password);
     if (user != null) {
-      print("user is successfully logged in");
       Navigator.pushReplacement(
           context, MaterialPageRoute(builder: (context) => const HomePage()));
     } else {
-      print("sign up failed");
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Login Failed")));
     }
-  
-}
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  _signInWithGoogle() async {
+    final GoogleSignIn _googleSignIn = GoogleSignIn();
+
+    try {
+      final GoogleSignInAccount? googleSignInAccount =
+          await _googleSignIn.signIn();
+      if (googleSignInAccount != null) {
+        final GoogleSignInAuthentication googleSignInAuthentication =
+            await googleSignInAccount.authentication;
+
+        final AuthCredential credential = GoogleAuthProvider.credential(
+            idToken: googleSignInAuthentication.idToken,
+            accessToken: googleSignInAuthentication.accessToken);
+
+        await _auth.signInWithCredential(credential);
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => const HomePage()));
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error: $e");
+    }
+  }
 }

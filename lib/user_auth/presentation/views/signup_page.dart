@@ -11,6 +11,7 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
+  bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
   bool password = true;
   final FirebaseAuthService _auth = FirebaseAuthService();
@@ -112,8 +113,10 @@ class _SignUpPageState extends State<SignUpPage> {
                   style: const TextStyle(color: Colors.white),
                   controller: _passwordController,
                   decoration: InputDecoration(
-                      contentPadding: EdgeInsets.all(10),
+                    errorStyle: const TextStyle(color: Colors.white),
+                      contentPadding: const EdgeInsets.only(right: 10, top: 15, left: 30, bottom: 15),
                       suffix: IconButton(
+                        iconSize: 20,
                         icon: Icon(
                           password ? Icons.visibility_off : Icons.visibility,
                           color: Colors.grey,
@@ -132,8 +135,11 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
                 const SizedBox(height: 25),
                 GestureDetector(
-                  onTap: (){
-                    if(_formKey.currentState!.validate()){
+                  onTap: () {
+                    if (_formKey.currentState!.validate()) {
+                      setState(() {
+                        _isLoading = true;
+                      });
                       _signUp();
                     }
                   },
@@ -142,8 +148,8 @@ class _SignUpPageState extends State<SignUpPage> {
                     decoration: BoxDecoration(
                         color: const Color.fromARGB(255, 113, 82, 167),
                         borderRadius: BorderRadius.circular(50)),
-                    child: const Center(
-                      child: Text(
+                    child: Center(
+                      child: _isLoading ? const CircularProgressIndicator(color: Colors.white,) : const Text(
                         "Sign Up",
                         style: TextStyle(
                             color: Colors.white,
@@ -168,11 +174,15 @@ class _SignUpPageState extends State<SignUpPage> {
 
     User? user = await _auth.signUpWithEmailAndPassword(email, password);
     if (user != null) {
-      print("user is successfully created");
       Navigator.pushReplacement(
           context, MaterialPageRoute(builder: (context) => const HomePage()));
     } else {
-      print("sign up failed");
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Sign Up Failed")));
     }
+
+    setState(() {
+      _isLoading = false;
+    });
   }
 }
